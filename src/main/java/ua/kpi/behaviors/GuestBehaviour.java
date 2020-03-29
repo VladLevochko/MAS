@@ -9,7 +9,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
-import ua.kpi.TaxiService;
+import ua.kpi.agents.TaxiService;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.CitizenState;
 import ua.kpi.agents.Citizen;
@@ -30,8 +30,8 @@ public class GuestBehaviour extends Behaviour {
     private List<AID> potentialHosts;
     private Map<AID, AgentLocation> locations;
 
-    public GuestBehaviour() {
-        agent = (Citizen) myAgent;
+    public GuestBehaviour(Citizen agent) {
+        this.agent = agent;
         agents = getAgents();
         potentialHosts = new ArrayList<>();
         locations = new HashMap<>();

@@ -10,8 +10,8 @@ import java.io.IOException;
 public class HostBehaviour extends CyclicBehaviour {
     private Citizen agent;
 
-    public HostBehaviour() {
-        agent = (Citizen) myAgent;
+    public HostBehaviour(Citizen agent) {
+        this.agent = agent;
     }
 
     @Override

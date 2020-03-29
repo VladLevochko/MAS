@@ -1,4 +1,4 @@
-package ua.kpi;
+package ua.kpi.agents;
 
 import jade.core.AID;
 import jade.core.Agent;
@@ -9,7 +9,6 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
-import ua.kpi.agents.Citizen;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.TripInformation;
 
@@ -17,13 +16,12 @@ import java.io.IOException;
 import java.util.*;
 
 public class TaxiService extends Agent {
+    private final long WAIT_DRIVER_RESPONSE_TIME = 1000;
 
     private static TaxiService instance;
 
-    private List<AID> drivers;
-
     private TaxiService() {
-        drivers = getDrivers();
+        // TODO: add behaviour for adding new taxi drivers each day
     }
 
     public static TaxiService getInstance() {
@@ -36,6 +34,20 @@ public class TaxiService extends Agent {
 
     public void setup() {
 
+    }
+
+    public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
+        List<AID> drivers = getDrivers();
+        Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
+        AID closestDriver = findClosestDriver(driversLocations, from);
+
+        Set<AID> driversToCancel = driversLocations.keySet();
+        driversLocations.remove(closestDriver);
+        sendCancellations(passenger, driversToCancel);
+
+        TripInformation tripInformation = tripWithDriver(closestDriver, passenger, from, to);
+
+        return tripInformation;
     }
 
     private List<AID> getDrivers() {
@@ -58,24 +70,30 @@ public class TaxiService extends Agent {
         return drivers;
     }
 
-    public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
 
-        Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers);
-        AID closestDriver = findClosestDriver(driversLocations, from);
-
-        Set<AID> driversToCancel = driversLocations.keySet();
-        driversLocations.remove(closestDriver);
-        sendCancellations(passenger, driversToCancel);
-
-        TripInformation tripInformation = tripWithDriver(closestDriver, passenger, from, to);
-
-        return tripInformation;
-    }
-
-    private Map<AID, AgentLocation> getDriversLocations(List<AID> drivers) {
+    private Map<AID, AgentLocation> getDriversLocations(List<AID> drivers, Agent requester) {
         Map<AID, AgentLocation> locations = new HashMap<>();
 
-        // TODO: implement logic of locations retrieval
+        ACLMessage message = new ACLMessage(ACLMessage.REQUEST);
+        for (AID driver : drivers) {
+            message.addReceiver(driver);
+        }
+        requester.send(message);
+
+        MessageTemplate responseTemplate = MessageTemplate.MatchPerformative(ACLMessage.REQUEST);
+        for (int i = 0; i < drivers.size(); i++) {
+            ACLMessage response = requester.blockingReceive(responseTemplate, WAIT_DRIVER_RESPONSE_TIME);
+            if (response == null) {
+                continue;
+            }
+
+            try {
+                AgentLocation location = (AgentLocation) response.getContentObject();
+                locations.put(response.getSender(), location);
+            } catch (UnreadableException e) {
+                e.printStackTrace();
+            }
+        }
 
         return locations;
     }

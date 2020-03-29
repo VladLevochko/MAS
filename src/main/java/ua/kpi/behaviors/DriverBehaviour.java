@@ -14,8 +14,8 @@ public class DriverBehaviour extends CyclicBehaviour {
 
     private Driver agent;
 
-    public DriverBehaviour() {
-        agent = (Driver) myAgent;
+    public DriverBehaviour(Driver agent) {
+        this.agent = agent;
     }
 
     @Override

@@ -16,7 +16,7 @@ public class Driver extends Agent {
     }
 
     protected void setup() {
-        addBehaviour(new DriverBehaviour());
+        addBehaviour(new DriverBehaviour(this));
     }
 
     public DriverState getDriverState() {

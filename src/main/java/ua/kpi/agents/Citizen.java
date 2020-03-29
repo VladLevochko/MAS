@@ -13,13 +13,14 @@ public class Citizen extends Agent {
     private AgentLocation location;
 
     public Citizen(AgentLocation location) {
+        this.state = new CitizenState();
         this.state.setValue(CitizenState.State.AT_HOME);
         this.location = location;
     }
 
     protected void setup() {
         state = new CitizenState();
-        addBehaviour(new HostBehaviour());
+        addBehaviour(new HostBehaviour(this));
         addBehaviour(new GuestInstinct(this, ACTIVITY_PERIOD));
     }
 

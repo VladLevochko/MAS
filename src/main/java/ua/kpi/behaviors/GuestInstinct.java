@@ -21,7 +21,7 @@ public class GuestInstinct extends TickerBehaviour {
             return;
         }
         state.setGuest();
-        agent.addBehaviour(new GuestBehaviour());
+        agent.addBehaviour(new GuestBehaviour(agent));
 
         long nextGuestingIntention = (long) (Math.random() * this.period);
         reset(nextGuestingIntention);
