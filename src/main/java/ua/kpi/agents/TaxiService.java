@@ -14,13 +14,19 @@ import ua.kpi.properties.TripInformation;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class TaxiService extends Agent {
     private final long WAIT_DRIVER_RESPONSE_TIME = 1000;
 
     private static TaxiService instance;
 
+    private List<Long> waitingTimes;
+    private ReentrantReadWriteLock lock;
+
     private TaxiService() {
+        waitingTimes = new ArrayList<>();
+        lock = new ReentrantReadWriteLock();
         // TODO: add behaviour for adding new taxi drivers each day
     }
 
@@ -37,6 +43,8 @@ public class TaxiService extends Agent {
     }
 
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
+        long tic = System.currentTimeMillis();
+
         List<AID> drivers = getDrivers();
         Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
         AID closestDriver = findClosestDriver(driversLocations, from);
@@ -46,6 +54,9 @@ public class TaxiService extends Agent {
         sendCancellations(passenger, driversToCancel);
 
         TripInformation tripInformation = tripWithDriver(closestDriver, passenger, from, to);
+
+        long toc = System.currentTimeMillis();
+        recordWaitingTime(toc - tic);
 
         return tripInformation;
     }
@@ -160,5 +171,11 @@ public class TaxiService extends Agent {
         }
 
         return tripInformation;
+    }
+
+    private void recordWaitingTime(long waitingTime) {
+        lock.writeLock().lock();
+        waitingTimes.add(waitingTime);
+        lock.writeLock().unlock();
     }
 }

@@ -12,6 +12,10 @@ public class CitizenState {
 
     private State value;
 
+    public CitizenState() {
+        this.value = State.AT_HOME;
+    }
+
     public void setValue(State stateValue) {
         this.value = stateValue;
     }
@@ -29,6 +33,6 @@ public class CitizenState {
     }
 
     public boolean isAtHome() {
-        return value == State.AT_HOME;
+        return value == State.AT_HOME || value == State.WAIT_FOR_GUEST;
     }
 }

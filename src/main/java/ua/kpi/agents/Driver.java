@@ -1,6 +1,11 @@
 package ua.kpi.agents;
 
 import jade.core.Agent;
+import jade.domain.DFService;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.domain.FIPAException;
+import ua.kpi.MyLog;
 import ua.kpi.behaviors.DriverBehaviour;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.DriverState;
@@ -16,7 +21,26 @@ public class Driver extends Agent {
     }
 
     protected void setup() {
+        MyLog.log("Setting up new driver");
+
         addBehaviour(new DriverBehaviour(this));
+
+        DFAgentDescription dfd = new DFAgentDescription();
+        dfd.setName(getAID());
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType("taxi");
+        sd.setName(getName());
+        dfd.addServices(sd);
+        try {
+            DFService.register(this, dfd);
+        }
+        catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
+    }
+
+    public void takeDown() {
+        MyLog.log(this + " went to rest");
     }
 
     public DriverState getDriverState() {
@@ -37,5 +61,9 @@ public class Driver extends Agent {
 
     public double getSpeed() {
         return 100500;
+    }
+
+    public String toString() {
+        return getLocalName();
     }
 }

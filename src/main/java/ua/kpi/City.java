@@ -12,7 +12,8 @@ import ua.kpi.properties.AgentLocation;
 public class City {
     public enum Type {
         KYIV(29000, 30000, 3000, 150),
-        ZHYTOMYR(9000, 7200, 280, 15);
+        ZHYTOMYR(9000, 7200, 280, 15),
+        TEST(10, 10, 2, 1);
 
         int width;
         int height;

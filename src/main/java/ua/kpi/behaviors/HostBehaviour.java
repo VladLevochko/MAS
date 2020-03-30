@@ -2,6 +2,8 @@ package ua.kpi.behaviors;
 
 import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+import ua.kpi.MyLog;
 import ua.kpi.agents.Citizen;
 import ua.kpi.properties.CitizenState;
 
@@ -16,7 +18,13 @@ public class HostBehaviour extends CyclicBehaviour {
 
     @Override
     public void action() {
-        ACLMessage message = agent.receive();
+        MessageTemplate template = MessageTemplate.or(
+                MessageTemplate.or(
+                        MessageTemplate.MatchPerformative(ACLMessage.PROPOSE),
+                        MessageTemplate.MatchPerformative(ACLMessage.INFORM)),
+                MessageTemplate.MatchPerformative(ACLMessage.CANCEL)
+        );
+        ACLMessage message = agent.receive(template);
         if (message != null) {
             processMessage(message);
         } else {
@@ -35,26 +43,31 @@ public class HostBehaviour extends CyclicBehaviour {
     private void homeBehaviour(ACLMessage message) {
         switch (message.getPerformative()) {
             case ACLMessage.PROPOSE:
+                MyLog.log(agent + " get proposition from " + message.getSender().getLocalName());
                 try {
                     ACLMessage response = message.createReply();
                     response.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                     response.setContentObject(agent.getLocation());
+
+                    agent.send(response);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 agent.getCitizenState().setValue(CitizenState.State.WAIT_FOR_GUEST);
+                MyLog.log(agent + " waiting for guest");
 
                 break;
 
             case ACLMessage.INFORM:
                 long timeForGuest = Long.parseLong(message.getContent());
+                MyLog.log(agent + " will be with guest for " + timeForGuest);
                 try {
                     Thread.sleep(timeForGuest);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                break;
             case ACLMessage.CANCEL:
+                MyLog.log(agent + " is ready to have guests");
                 agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
         }
     }

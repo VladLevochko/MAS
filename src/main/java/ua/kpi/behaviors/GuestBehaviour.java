@@ -9,6 +9,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import ua.kpi.MyLog;
 import ua.kpi.agents.TaxiService;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.CitizenState;
@@ -29,10 +30,11 @@ public class GuestBehaviour extends Behaviour {
     private int responses;
     private List<AID> potentialHosts;
     private Map<AID, AgentLocation> locations;
+    private boolean isDone;
 
     public GuestBehaviour(Citizen agent) {
         this.agent = agent;
-        agents = getAgents();
+        this.agents = getAgents();
         potentialHosts = new ArrayList<>();
         locations = new HashMap<>();
     }
@@ -42,14 +44,16 @@ public class GuestBehaviour extends Behaviour {
         CitizenState state = agent.getCitizenState();
         switch (state.getValue()) {
             case GUEST:
+                MyLog.log(agent + " sends propositions");
                 String proposalReply = "propose" + System.currentTimeMillis();
                 proposeVisit(agents, proposalReply);
 
                 replyTemplate = MessageTemplate.and(
                         MessageTemplate.MatchConversationId(CONVERSATION_ID),
-                        MessageTemplate.MatchReplyWith(proposalReply)
+                        MessageTemplate.MatchInReplyTo(proposalReply)
                 );
                 state.setValue(CitizenState.State.GUEST_WAITING_RESPONSES);
+                MyLog.log(agent + " start waiting for responses");
 
                 break;
             case GUEST_WAITING_RESPONSES:
@@ -67,6 +71,7 @@ public class GuestBehaviour extends Behaviour {
                     responses++;
 
                     if (responses == agents.size()) {
+                        MyLog.log(agent + " received all responses");
                         agent.getCitizenState().setValue(CitizenState.State.GUEST_TRAVELING);
                     }
                 } else {
@@ -74,15 +79,17 @@ public class GuestBehaviour extends Behaviour {
                 }
                 break;
             case GUEST_TRAVELING:
+                MyLog.log(agent + " picking a host");
                 AID host = pickHost(potentialHosts);
+                MyLog.log(agent + " is going to "  + host.getLocalName());
                 sendApproval(host);
                 sendRejectsExcept(potentialHosts, host);
-
 
                 goToHost(host);
                 backFromHost(host);
                 agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
 
+                isDone = true;
                 break;
         }
     }
@@ -91,7 +98,7 @@ public class GuestBehaviour extends Behaviour {
         List<AID> agents = new ArrayList<>();
         DFAgentDescription template = new DFAgentDescription();
         ServiceDescription serviceDescription = new ServiceDescription();
-        serviceDescription.setType("passengerVisit");
+        serviceDescription.setType("passenger");
 
         DFAgentDescription[] passengers = null;
         try {
@@ -157,6 +164,7 @@ public class GuestBehaviour extends Behaviour {
 
     private void goToHost(AID host) {
         TaxiService taxi = TaxiService.getInstance();
+        MyLog.log(agent + " is requesting taxi");
         TripInformation tripInformation = taxi.requestDriver(agent, agent.getLocation(), locations.get(host));
 
         double stayTime = Math.random() * 3 * 60 * 60 * 1000;
@@ -189,6 +197,6 @@ public class GuestBehaviour extends Behaviour {
 
     @Override
     public boolean done() {
-        return false;
+        return isDone;
     }
 }

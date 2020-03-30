@@ -1,6 +1,7 @@
 package ua.kpi.behaviors;
 
 import jade.core.behaviours.TickerBehaviour;
+import ua.kpi.MyLog;
 import ua.kpi.properties.CitizenState;
 import ua.kpi.agents.Citizen;
 
@@ -9,7 +10,7 @@ public class GuestInstinct extends TickerBehaviour {
     private long period;
 
     public GuestInstinct(Citizen agent, long period) {
-        super(agent, period);
+        super(agent, (long) (Math.random() * period));
         this.agent = agent;
         this.period = period;
     }
@@ -17,9 +18,11 @@ public class GuestInstinct extends TickerBehaviour {
     @Override
     protected void onTick() {
         CitizenState state = agent.getCitizenState();
-        if (state.getValue() == CitizenState.State.GUEST) {
+        if (!state.isAtHome() || state.getValue() == CitizenState.State.WAIT_FOR_GUEST) {
             return;
         }
+        MyLog.log(agent.toString() + " need to visit somebody");
+
         state.setGuest();
         agent.addBehaviour(new GuestBehaviour(agent));
 
