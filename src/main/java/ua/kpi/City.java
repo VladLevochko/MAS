@@ -13,7 +13,9 @@ public class City {
     public enum Type {
         KYIV(29000, 30000, 3000, 150),
         ZHYTOMYR(9000, 7200, 280, 15),
-        TEST(10, 10, 2, 1);
+        BILA_TSERKVA(200, 200, 5, 2),
+        CHABANY(100, 100, 2, 1);
+
 
         int width;
         int height;

@@ -9,6 +9,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import ua.kpi.MyLog;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.TripInformation;
 
@@ -45,20 +46,38 @@ public class TaxiService extends Agent {
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
         long tic = System.currentTimeMillis();
 
-        List<AID> drivers = getDrivers();
-        Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
-        AID closestDriver = findClosestDriver(driversLocations, from);
+        AID driver = null;
+        while (driver == null) {
+            driver = findDriver(passenger, from, to);
+        }
 
-        Set<AID> driversToCancel = driversLocations.keySet();
-        driversLocations.remove(closestDriver);
-        sendCancellations(passenger, driversToCancel);
-
-        TripInformation tripInformation = tripWithDriver(closestDriver, passenger, from, to);
+        TripInformation tripInformation = tripWithDriver(driver, passenger, from, to);
 
         long toc = System.currentTimeMillis();
         recordWaitingTime(toc - tic);
 
         return tripInformation;
+    }
+
+    private AID findDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
+        MyLog.log("looking for drivers");
+        List<AID> drivers = getDrivers();
+        MyLog.log(String.format("found %d driver", drivers.size()));
+        if (drivers.size() == 0) {
+            return null;
+        }
+
+        Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
+        AID closestDriver = findClosestDriver(driversLocations, from);
+        MyLog.log("chose driver " + closestDriver.getLocalName());
+
+        Set<AID> driversToCancel = driversLocations.keySet();
+        driversLocations.remove(closestDriver);
+        sendCancellations(passenger, driversToCancel);
+
+
+
+        return closestDriver;
     }
 
     private List<AID> getDrivers() {
@@ -85,13 +104,13 @@ public class TaxiService extends Agent {
     private Map<AID, AgentLocation> getDriversLocations(List<AID> drivers, Agent requester) {
         Map<AID, AgentLocation> locations = new HashMap<>();
 
-        ACLMessage message = new ACLMessage(ACLMessage.REQUEST);
+        ACLMessage message = new ACLMessage(ACLMessage.PROPOSE);
         for (AID driver : drivers) {
             message.addReceiver(driver);
         }
         requester.send(message);
 
-        MessageTemplate responseTemplate = MessageTemplate.MatchPerformative(ACLMessage.REQUEST);
+        MessageTemplate responseTemplate = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
         for (int i = 0; i < drivers.size(); i++) {
             ACLMessage response = requester.blockingReceive(responseTemplate, WAIT_DRIVER_RESPONSE_TIME);
             if (response == null) {
@@ -134,6 +153,21 @@ public class TaxiService extends Agent {
         passenger.send(cancellation);
     }
 
+    private boolean sendApproval(Citizen passenger, AID driver) {
+        ACLMessage message = new ACLMessage(ACLMessage.AGREE);
+        message.addReceiver(driver);
+        message.setReplyWith("approve" + System.currentTimeMillis());
+        passenger.send(message);
+
+        MessageTemplate responseTemplate = MessageTemplate.and(
+                MessageTemplate.MatchPerformative(ACLMessage.AGREE),
+                MessageTemplate.MatchInReplyTo(message.getReplyWith())
+        );
+        ACLMessage response = passenger.blockingReceive(responseTemplate, 1000);
+
+        return response == null;
+    }
+
     private TripInformation tripWithDriver(AID driver, Citizen passenger, AgentLocation from, AgentLocation to) {
         MessageTemplate responseTemplate = sendConfirmation(driver, passenger, from, to);
         TripInformation tripInformation = receiveTripInformation(passenger, responseTemplate);
@@ -153,9 +187,18 @@ public class TaxiService extends Agent {
             e.printStackTrace();
         }
 
+        try {
+            if (confirmation.getContentObject() == null) {
+                MyLog.log(passenger + " happened error during setting locations for trip!!!");
+            }
+        } catch (UnreadableException e) {
+            MyLog.log(passenger  + " happened error during setting locations for trip!!!");
+            e.printStackTrace();
+        }
+
         passenger.send(confirmation);
 
-        MessageTemplate responseTemplate = MessageTemplate.MatchReplyWith(confirmation.getReplyWith());
+        MessageTemplate responseTemplate = MessageTemplate.MatchInReplyTo(confirmation.getReplyWith());
 
         return responseTemplate;
     }

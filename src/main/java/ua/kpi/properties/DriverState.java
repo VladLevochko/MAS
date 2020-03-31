@@ -2,5 +2,5 @@ package ua.kpi.properties;
 
 public enum DriverState {
     FREE,
-    WAITING_
+    BUSY
 }

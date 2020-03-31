@@ -4,6 +4,7 @@ import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
+import ua.kpi.Main;
 import ua.kpi.MyLog;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.CitizenState;
@@ -12,7 +13,8 @@ import ua.kpi.behaviors.HostBehaviour;
 import jade.core.Agent;
 
 public class Citizen extends Agent {
-    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 2 / 500;
+//    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 2 / Main.MODELLING_SPEED;
+    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 5 / Main.MODELLING_SPEED;
 
     private CitizenState state;
     private AgentLocation location;
@@ -41,7 +43,11 @@ public class Citizen extends Agent {
         }
 
         addBehaviour(new HostBehaviour(this));
-        addBehaviour(new GuestInstinct(this, ACTIVITY_PERIOD));
+//        if (getLocalName().equals("citizen 0")) {
+//            addBehaviour(new GuestInstinct(this, 1000));
+//        } else {
+            addBehaviour(new GuestInstinct(this, ACTIVITY_PERIOD));
+//        }
     }
 
     protected void takeDown() {

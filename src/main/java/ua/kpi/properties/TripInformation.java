@@ -34,4 +34,9 @@ public class TripInformation implements Serializable {
     public double getTotalTime() {
         return timeToDestination + timeToPassenger;
     }
+
+    public String toString() {
+        return String.format("TripInformation { toPassenger: %f; toDestination: %f; total: %f }",
+                timeToPassenger, timeToDestination, getTotalTime());
+    }
 }

@@ -9,6 +9,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import ua.kpi.Main;
 import ua.kpi.MyLog;
 import ua.kpi.agents.TaxiService;
 import ua.kpi.properties.AgentLocation;
@@ -22,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 public class GuestBehaviour extends Behaviour {
-    private String CONVERSATION_ID = "visit_proposal";  // TODO: check correctness
+    private String CONVERSATION_ID = "visit_proposal";
 
     private Citizen agent;
     private MessageTemplate replyTemplate;
@@ -71,7 +72,7 @@ public class GuestBehaviour extends Behaviour {
                     responses++;
 
                     if (responses == agents.size()) {
-                        MyLog.log(agent + " received all responses");
+                        MyLog.log(String.format("%s received all %d responses", agent.toString(), responses));
                         agent.getCitizenState().setValue(CitizenState.State.GUEST_TRAVELING);
                     }
                 } else {
@@ -79,16 +80,18 @@ public class GuestBehaviour extends Behaviour {
                 }
                 break;
             case GUEST_TRAVELING:
-                MyLog.log(agent + " picking a host");
-                AID host = pickHost(potentialHosts);
-                MyLog.log(agent + " is going to "  + host.getLocalName());
-                sendApproval(host);
-                sendRejectsExcept(potentialHosts, host);
+                if (potentialHosts.size() != 0) {
+                    MyLog.log(agent + " picking a host");
+                    AID host = pickHost(potentialHosts);
+                    MyLog.log(agent + " is going to " + host.getLocalName());
+                    sendApproval(host);
+                    sendRejectsExcept(potentialHosts, host);
 
-                goToHost(host);
-                backFromHost(host);
+                    goToHost(host);
+                    backFromHost(host);
+                }
+
                 agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
-
                 isDone = true;
                 break;
         }
@@ -99,6 +102,7 @@ public class GuestBehaviour extends Behaviour {
         DFAgentDescription template = new DFAgentDescription();
         ServiceDescription serviceDescription = new ServiceDescription();
         serviceDescription.setType("passenger");
+        template.addServices(serviceDescription);
 
         DFAgentDescription[] passengers = null;
         try {
@@ -167,7 +171,7 @@ public class GuestBehaviour extends Behaviour {
         MyLog.log(agent + " is requesting taxi");
         TripInformation tripInformation = taxi.requestDriver(agent, agent.getLocation(), locations.get(host));
 
-        double stayTime = Math.random() * 3 * 60 * 60 * 1000;
+        double stayTime = Math.random() * 3 * 60 * 60 * 1000 / Main.MODELLING_SPEED;
         double totalTime = tripInformation.getTimeToPassenger()
                 + tripInformation.getTimeToDestination()
                 + stayTime;

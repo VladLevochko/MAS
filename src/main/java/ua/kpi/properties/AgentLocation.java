@@ -30,4 +30,8 @@ public class AgentLocation implements Serializable {
 
         return Math.sqrt(xDifference * xDifference + yDifference * yDifference);
     }
+
+    public String toString() {
+        return String.format("AgentLocation [%d, %d]", x, y);
+    }
 }

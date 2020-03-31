@@ -54,7 +54,7 @@ public class HostBehaviour extends CyclicBehaviour {
                     e.printStackTrace();
                 }
                 agent.getCitizenState().setValue(CitizenState.State.WAIT_FOR_GUEST);
-                MyLog.log(agent + " waiting for guest");
+                MyLog.log(agent + " waiting for guest");  // TODO: add timer to reset state
 
                 break;
 

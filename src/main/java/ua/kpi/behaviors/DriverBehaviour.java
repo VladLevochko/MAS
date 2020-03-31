@@ -1,8 +1,10 @@
 package ua.kpi.behaviors;
 
+import jade.core.AID;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
+import ua.kpi.MyLog;
 import ua.kpi.agents.Driver;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.DriverState;
@@ -13,17 +15,27 @@ import java.io.IOException;
 public class DriverBehaviour extends CyclicBehaviour {
 
     private Driver agent;
+    private AID client;
+    private long startWaiting;
 
     public DriverBehaviour(Driver agent) {
         this.agent = agent;
+        this.startWaiting = 0;
     }
 
     @Override
     public void action() {
         ACLMessage message = agent.receive();
         if (message != null) {
+
+            if (mustBeFree()) {
+                agent.setDriverState(DriverState.FREE);
+                startWaiting = 0;
+            }
+
             switch (message.getPerformative()) {
                 case ACLMessage.PROPOSE:
+                    MyLog.log(agent + " received proposition to drive");
                     if (agent.getDriverState() == DriverState.FREE) {
                         ACLMessage response = message.createReply();
                         response.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
@@ -34,36 +46,55 @@ public class DriverBehaviour extends CyclicBehaviour {
                         }
 
                         agent.send(response);
-                        agent.setDriverState(DriverState.WAITING_);
+                        client = message.getSender();
+                        startWaiting = System.currentTimeMillis();
+                        agent.setDriverState(DriverState.BUSY);
+                        MyLog.log(agent + " replied to " + message.getSender().getLocalName() + " that he is free");
                     }
 
                     break;
                 case ACLMessage.CONFIRM:  // TODO: maybe wait for response from some specific passenger
+                    MyLog.log(agent + " received confirmation from " + message.getSender().getLocalName());
+
+                    if (message.getSender() != client) {
+                        break;
+                    }
+
                     try {
                         AgentLocation[] path = (AgentLocation[]) message.getContentObject();
+
                         TripInformation tripInformation = calculateTripInformation(path);
+                        MyLog.log(agent + " calculated " + tripInformation);
                         ACLMessage response = message.createReply();
                         response.setContentObject(tripInformation);
 
                         agent.send(response);
 
                         Thread.sleep((long) tripInformation.getTotalTime());
+
+                        agent.setLocation(path[1]);
                     } catch (UnreadableException | IOException | InterruptedException e) {
                         e.printStackTrace();
                     }
-                    agent.setDriverState(DriverState.FREE);
                 case ACLMessage.CANCEL:
                     agent.setDriverState(DriverState.FREE);
+                    client = null;
             }
         } else {
             block();
         }
     }
 
+    private boolean mustBeFree() {
+        return System.currentTimeMillis() - startWaiting > 2000;
+    }
 
     private TripInformation calculateTripInformation(AgentLocation[] path) {
-        double timeToPassenger = calculateTime(agent.getLocation(), path[0]);
-        double timeToDestination = calculateTime(path[0], path[1]);
+        AgentLocation driverLocation = agent.getLocation();
+        AgentLocation passengerLocation = path[0];
+        AgentLocation destination = path[1];
+        double timeToPassenger = calculateTime(driverLocation, passengerLocation);
+        double timeToDestination = calculateTime(passengerLocation, destination);
 
         return new TripInformation(timeToPassenger, timeToDestination);
     }

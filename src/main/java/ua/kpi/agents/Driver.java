@@ -11,6 +11,7 @@ import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.DriverState;
 
 public class Driver extends Agent {
+    private final int SPEED = 50;
 
     private DriverState state;
     private AgentLocation location;
@@ -60,7 +61,7 @@ public class Driver extends Agent {
     }
 
     public double getSpeed() {
-        return 100500;
+        return SPEED;
     }
 
     public String toString() {
