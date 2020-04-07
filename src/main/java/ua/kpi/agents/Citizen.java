@@ -13,8 +13,7 @@ import ua.kpi.behaviors.HostBehaviour;
 import jade.core.Agent;
 
 public class Citizen extends Agent {
-//    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 2 / Main.MODELLING_SPEED;
-    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 5 / Main.MODELLING_SPEED;
+    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 2 / Main.MODELLING_SPEED;
 
     private CitizenState state;
     private AgentLocation location;

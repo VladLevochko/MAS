@@ -45,7 +45,7 @@ public class GuestBehaviour extends Behaviour {
         CitizenState state = agent.getCitizenState();
         switch (state.getValue()) {
             case GUEST:
-                MyLog.log(agent + " sends propositions");
+//                MyLog.log(agent + " sends propositions");
                 String proposalReply = "propose" + System.currentTimeMillis();
                 proposeVisit(agents, proposalReply);
 
@@ -54,7 +54,7 @@ public class GuestBehaviour extends Behaviour {
                         MessageTemplate.MatchInReplyTo(proposalReply)
                 );
                 state.setValue(CitizenState.State.GUEST_WAITING_RESPONSES);
-                MyLog.log(agent + " start waiting for responses");
+//                MyLog.log(agent + " start waiting for responses");
 
                 break;
             case GUEST_WAITING_RESPONSES:
@@ -72,7 +72,7 @@ public class GuestBehaviour extends Behaviour {
                     responses++;
 
                     if (responses == agents.size()) {
-                        MyLog.log(String.format("%s received all %d responses", agent.toString(), responses));
+//                        MyLog.log(String.format("%s received all %d responses", agent.toString(), responses));
                         agent.getCitizenState().setValue(CitizenState.State.GUEST_TRAVELING);
                     }
                 } else {
@@ -81,7 +81,7 @@ public class GuestBehaviour extends Behaviour {
                 break;
             case GUEST_TRAVELING:
                 if (potentialHosts.size() != 0) {
-                    MyLog.log(agent + " picking a host");
+//                    MyLog.log(agent + " picking a host");
                     AID host = pickHost(potentialHosts);
                     MyLog.log(agent + " is going to " + host.getLocalName());
                     sendApproval(host);
@@ -168,10 +168,10 @@ public class GuestBehaviour extends Behaviour {
 
     private void goToHost(AID host) {
         TaxiService taxi = TaxiService.getInstance();
-        MyLog.log(agent + " is requesting taxi");
+//        MyLog.log(agent + " is requesting taxi");
         TripInformation tripInformation = taxi.requestDriver(agent, agent.getLocation(), locations.get(host));
 
-        double stayTime = Math.random() * 3 * 60 * 60 * 1000 / Main.MODELLING_SPEED;
+        double stayTime = Math.random() * 3 * 60 * 60;
         double totalTime = tripInformation.getTimeToPassenger()
                 + tripInformation.getTimeToDestination()
                 + stayTime;
@@ -193,7 +193,7 @@ public class GuestBehaviour extends Behaviour {
         long totalTime = (long) tripInformation.getTimeToPassenger()
                 + (long) tripInformation.getTimeToDestination();
         try {
-            Thread.sleep(totalTime);
+            Thread.sleep(totalTime * 1000 / Main.MODELLING_SPEED);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

@@ -10,12 +10,14 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 import ua.kpi.MyLog;
+import ua.kpi.behaviors.TaxiServiceBehaviour;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.TripInformation;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiConsumer;
 
 public class TaxiService extends Agent {
     private final long WAIT_DRIVER_RESPONSE_TIME = 1000;
@@ -24,11 +26,15 @@ public class TaxiService extends Agent {
 
     private List<Long> waitingTimes;
     private ReentrantReadWriteLock lock;
+    private BiConsumer<Agent, String> newDriverCallback;
 
     private TaxiService() {
         waitingTimes = new ArrayList<>();
         lock = new ReentrantReadWriteLock();
-        // TODO: add behaviour for adding new taxi drivers each day
+    }
+
+    public void setNewDriverCallback(BiConsumer<Agent, String> callback) {
+        this.newDriverCallback = callback;
     }
 
     public static TaxiService getInstance() {
@@ -40,7 +46,15 @@ public class TaxiService extends Agent {
     }
 
     public void setup() {
+        addBehaviour(new TaxiServiceBehaviour(this, newDriverCallback));
+    }
 
+    public ReentrantReadWriteLock getStorageLock() {
+        return this.lock;
+    }
+
+    public List<Long> getWaitingTimes() {
+        return this.waitingTimes;
     }
 
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
@@ -54,21 +68,24 @@ public class TaxiService extends Agent {
         TripInformation tripInformation = tripWithDriver(driver, passenger, from, to);
 
         long toc = System.currentTimeMillis();
-        recordWaitingTime(toc - tic);
+        recordWaitingTime((toc - tic) / 1000);
 
         return tripInformation;
     }
 
     private AID findDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
-        MyLog.log("looking for drivers");
+//        MyLog.log("looking for drivers");
         List<AID> drivers = getDrivers();
-        MyLog.log(String.format("found %d driver", drivers.size()));
+//        MyLog.log(String.format("found %d drivers", drivers.size()));
         if (drivers.size() == 0) {
             return null;
         }
 
         Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
         AID closestDriver = findClosestDriver(driversLocations, from);
+        if (closestDriver == null) {
+            return null;
+        }
         MyLog.log("chose driver " + closestDriver.getLocalName());
 
         Set<AID> driversToCancel = driversLocations.keySet();
@@ -94,7 +111,7 @@ public class TaxiService extends Agent {
                 drivers.add(agentDescription.getName());
             }
         } catch (FIPAException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
         }
 
         return drivers;
@@ -120,8 +137,9 @@ public class TaxiService extends Agent {
             try {
                 AgentLocation location = (AgentLocation) response.getContentObject();
                 locations.put(response.getSender(), location);
+//                MyLog.log(String.format("%s now at %s", response.getSender().getLocalName(), location));
             } catch (UnreadableException e) {
-                e.printStackTrace();
+                MyLog.log("error receiving drivers location");
             }
         }
 
@@ -193,7 +211,6 @@ public class TaxiService extends Agent {
             }
         } catch (UnreadableException e) {
             MyLog.log(passenger  + " happened error during setting locations for trip!!!");
-            e.printStackTrace();
         }
 
         passenger.send(confirmation);

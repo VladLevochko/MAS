@@ -4,6 +4,7 @@ import jade.core.AID;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
+import ua.kpi.Main;
 import ua.kpi.MyLog;
 import ua.kpi.agents.Driver;
 import ua.kpi.properties.AgentLocation;
@@ -26,16 +27,11 @@ public class DriverBehaviour extends CyclicBehaviour {
     @Override
     public void action() {
         ACLMessage message = agent.receive();
+
         if (message != null) {
-
-            if (mustBeFree()) {
-                agent.setDriverState(DriverState.FREE);
-                startWaiting = 0;
-            }
-
             switch (message.getPerformative()) {
                 case ACLMessage.PROPOSE:
-                    MyLog.log(agent + " received proposition to drive");
+//                    MyLog.log(agent + " received proposition to drive");
                     if (agent.getDriverState() == DriverState.FREE) {
                         ACLMessage response = message.createReply();
                         response.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
@@ -49,14 +45,14 @@ public class DriverBehaviour extends CyclicBehaviour {
                         client = message.getSender();
                         startWaiting = System.currentTimeMillis();
                         agent.setDriverState(DriverState.BUSY);
-                        MyLog.log(agent + " replied to " + message.getSender().getLocalName() + " that he is free");
+//                        MyLog.log(agent + " replied to " + message.getSender().getLocalName() + " that he is free");
                     }
 
                     break;
-                case ACLMessage.CONFIRM:  // TODO: maybe wait for response from some specific passenger
+                case ACLMessage.CONFIRM:
                     MyLog.log(agent + " received confirmation from " + message.getSender().getLocalName());
 
-                    if (message.getSender() != client) {
+                    if (!message.getSender().equals(client)) {
                         break;
                     }
 
@@ -70,7 +66,7 @@ public class DriverBehaviour extends CyclicBehaviour {
 
                         agent.send(response);
 
-                        Thread.sleep((long) tripInformation.getTotalTime());
+                        Thread.sleep((long) tripInformation.getTotalTime() * 1000 / Main.MODELLING_SPEED);
 
                         agent.setLocation(path[1]);
                     } catch (UnreadableException | IOException | InterruptedException e) {
@@ -96,7 +92,11 @@ public class DriverBehaviour extends CyclicBehaviour {
         double timeToPassenger = calculateTime(driverLocation, passengerLocation);
         double timeToDestination = calculateTime(passengerLocation, destination);
 
-        return new TripInformation(timeToPassenger, timeToDestination);
+        TripInformation tripInformation = new TripInformation(timeToPassenger, timeToDestination);
+        tripInformation.setDistanceToPassenger(driverLocation.distanceTo(passengerLocation));
+        tripInformation.setDistanceToDestination(passengerLocation.distanceTo(destination));
+
+        return tripInformation;
     }
 
     private double calculateTime(AgentLocation from, AgentLocation to) {

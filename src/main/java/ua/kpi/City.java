@@ -13,9 +13,9 @@ public class City {
     public enum Type {
         KYIV(29000, 30000, 3000, 150),
         ZHYTOMYR(9000, 7200, 280, 15),
+        UZHHOROD(7900, 8100, 115, 4),
         BILA_TSERKVA(200, 200, 5, 2),
         CHABANY(100, 100, 2, 1);
-
 
         int width;
         int height;
@@ -38,24 +38,22 @@ public class City {
         this.container = container;
     }
 
-    public void start() throws StaleProxyException {
+    public void start() {
         Agent agent = TaxiService.getInstance();
+        ((TaxiService) agent).setNewDriverCallback(this::addNewAgent);
         String nickname = "taxi_service";
-        AgentController controller = container.acceptNewAgent(nickname, agent);
-        controller.start();
+        addNewAgent(agent, nickname);
 
         for (int i = 0; i < cityType.drivers; i++) {
             agent = new Driver();
-            nickname = String.format("driver %d", i);
-            controller = container.acceptNewAgent(nickname, agent);
-            controller.start();
+            nickname = String.format("driver_%d", i);
+            addNewAgent(agent, nickname);
         }
 
         for (int i = 0; i < cityType.population; i++) {
             agent = new Citizen(generateLocation());
-            nickname = String.format("citizen %d", i);
-            controller = container.acceptNewAgent(nickname, agent);
-            controller.start();
+            nickname = String.format("citizen_%d", i);
+            addNewAgent(agent, nickname);
         }
     }
 
@@ -66,4 +64,12 @@ public class City {
         return new AgentLocation(x, y);
     }
 
+    private void addNewAgent(Agent agent, String nickname) {
+        try {
+            AgentController controller = container.acceptNewAgent(nickname, agent);
+            controller.start();
+        } catch (StaleProxyException e) {
+            MyLog.log("City can't create new agent " + nickname);
+        }
+    }
 }
