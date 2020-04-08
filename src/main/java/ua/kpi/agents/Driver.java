@@ -12,11 +12,15 @@ import ua.kpi.MyLog;
 import ua.kpi.behaviors.DriverBehaviour;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.DriverState;
+import ua.kpi.properties.TripInformation;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Driver extends Agent {
     private static int driversNumber = 0;
 
-    private final double SPEED = 16.67; // m/ms
+    private final double SPEED = 16.67; // m/s
 
     private DriverState state;
     private AgentLocation location;

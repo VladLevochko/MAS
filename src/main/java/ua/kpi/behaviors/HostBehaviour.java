@@ -19,6 +19,7 @@ public class HostBehaviour extends CyclicBehaviour {
 
     private Citizen agent;
     private AID guest;
+    private long timeToBecomeFree;
 
     public HostBehaviour(Citizen agent) {
         this.agent = agent;
@@ -41,6 +42,11 @@ public class HostBehaviour extends CyclicBehaviour {
     }
 
     private void processMessage(ACLMessage message) {
+        if (agent.getCitizenState().getValue() == CitizenState.State.WITH_GUEST
+                && timeToBecomeFree <= System.currentTimeMillis()) {
+            agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
+        }
+
         if (agent.getCitizenState().isAtHome()) {
             homeBehaviour(message);
         } else {
@@ -81,14 +87,16 @@ public class HostBehaviour extends CyclicBehaviour {
                 break;
 
             case ACLMessage.INFORM:
+                agent.getCitizenState().setValue(CitizenState.State.WITH_GUEST);
                 long timeForGuest = Long.parseLong(message.getContent());
                 MyLog.log(agent + " will be with guest for " + timeForGuest);
-                try {
-                    Thread.sleep(timeForGuest * 1000 / Main.MODELLING_SPEED);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                MyLog.log(String.format("%s: %s is leaving", agent, guest.getLocalName()));
+                timeToBecomeFree = System.currentTimeMillis() + timeForGuest * 1000 / Main.MODELLING_SPEED;
+//                try {
+//                    Thread.sleep(timeForGuest * 1000 / Main.MODELLING_SPEED);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//                MyLog.log(String.format("%s: %s is leaving", agent, guest.getLocalName()));
             case ACLMessage.CANCEL:
 //                MyLog.log(agent + " is ready to have guests");
                 agent.getCitizenState().setValue(CitizenState.State.AT_HOME);

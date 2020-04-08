@@ -4,6 +4,7 @@ public class CitizenState {
     public enum State {
         AT_HOME,
         WAIT_FOR_GUEST,
+        WITH_GUEST,
 
         GUEST,
         GUEST_WAITING_RESPONSES,

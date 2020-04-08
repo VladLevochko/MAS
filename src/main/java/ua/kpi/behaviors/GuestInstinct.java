@@ -18,7 +18,7 @@ public class GuestInstinct extends TickerBehaviour {
     @Override
     protected void onTick() {
         CitizenState state = agent.getCitizenState();
-        if (!state.isAtHome() || state.getValue() == CitizenState.State.WAIT_FOR_GUEST) {
+        if (state.getValue() != CitizenState.State.AT_HOME) {
             return;
         }
 //        MyLog.log(agent.toString() + " need to visit somebody");

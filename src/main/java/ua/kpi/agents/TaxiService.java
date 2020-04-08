@@ -25,11 +25,13 @@ public class TaxiService extends Agent {
     private static TaxiService instance;
 
     private List<Long> waitingTimes;
+    private Map<String, Integer> trips;
     private ReentrantReadWriteLock lock;
     private BiConsumer<Agent, String> newDriverCallback;
 
     private TaxiService() {
         waitingTimes = new ArrayList<>();
+        trips = new HashMap<>();
         lock = new ReentrantReadWriteLock();
     }
 
@@ -57,6 +59,10 @@ public class TaxiService extends Agent {
         return this.waitingTimes;
     }
 
+    public Map<String, Integer> getTrips() {
+        return this.trips;
+    }
+
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
         long tic = System.currentTimeMillis();
 
@@ -66,6 +72,10 @@ public class TaxiService extends Agent {
         }
 
         TripInformation tripInformation = tripWithDriver(driver, passenger, from, to);
+        String driverName = driver.getLocalName();
+        lock.writeLock().lock();
+        trips.put(driverName, trips.getOrDefault(driverName, 0) + 1);
+        lock.writeLock().unlock();
 
         long toc = System.currentTimeMillis();
         recordWaitingTime((toc - tic) / 1000);
@@ -97,7 +107,7 @@ public class TaxiService extends Agent {
         return closestDriver;
     }
 
-    private List<AID> getDrivers() {
+    public List<AID> getDrivers() {
         List<AID> drivers = new ArrayList<>();
 
         DFAgentDescription template = new DFAgentDescription();
