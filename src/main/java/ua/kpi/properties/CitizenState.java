@@ -3,7 +3,7 @@ package ua.kpi.properties;
 public class CitizenState {
     public enum State {
         AT_HOME,
-        WAIT_FOR_GUEST,
+        WAITING_FOR_GUEST,
         WITH_GUEST,
 
         GUEST,
@@ -34,6 +34,6 @@ public class CitizenState {
     }
 
     public boolean isAtHome() {
-        return value == State.AT_HOME || value == State.WAIT_FOR_GUEST;
+        return value == State.AT_HOME || value == State.WAITING_FOR_GUEST;
     }
 }

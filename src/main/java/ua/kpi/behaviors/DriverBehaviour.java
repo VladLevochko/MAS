@@ -17,15 +17,18 @@ public class DriverBehaviour extends CyclicBehaviour {
 
     private Driver agent;
     private AID client;
-    private long startWaiting;
+    private long endTripAt;
 
     public DriverBehaviour(Driver agent) {
         this.agent = agent;
-        this.startWaiting = 0;
     }
 
     @Override
     public void action() {
+        if (agent.getDriverState() == DriverState.DRIVING && endTripAt <= System.currentTimeMillis()) {
+            agent.setDriverState(DriverState.FREE);
+        }
+
         ACLMessage message = agent.receive();
 
         if (message != null) {
@@ -43,9 +46,12 @@ public class DriverBehaviour extends CyclicBehaviour {
 
                         agent.send(response);
                         client = message.getSender();
-                        startWaiting = System.currentTimeMillis();
-                        agent.setDriverState(DriverState.BUSY);
+                        agent.setDriverState(DriverState.WAITING_FOR_PASSENGER);
 //                        MyLog.log(agent + " replied to " + message.getSender().getLocalName() + " that he is free");
+                    } else {
+                        ACLMessage response = message.createReply();
+                        response.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                        agent.send(response);
                     }
 
                     break;
@@ -66,10 +72,11 @@ public class DriverBehaviour extends CyclicBehaviour {
 
                         agent.send(response);
 
-                        Thread.sleep((long) tripInformation.getTotalTime() * 1000 / Main.MODELLING_SPEED);
+                        endTripAt = System.currentTimeMillis() + (long) tripInformation.getTotalTime() * 1000 / Main.MODELLING_SPEED;
+                        agent.setDriverState(DriverState.DRIVING);
 
                         agent.setLocation(path[1]);
-                    } catch (UnreadableException | IOException | InterruptedException e) {
+                    } catch (UnreadableException | IOException e) {
                         e.printStackTrace();
                     }
                 case ACLMessage.CANCEL:
@@ -79,10 +86,6 @@ public class DriverBehaviour extends CyclicBehaviour {
         } else {
             block();
         }
-    }
-
-    private boolean mustBeFree() {
-        return System.currentTimeMillis() - startWaiting > 2000;
     }
 
     private TripInformation calculateTripInformation(AgentLocation[] path) {

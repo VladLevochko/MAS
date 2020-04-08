@@ -24,7 +24,7 @@ public class TaxiService extends Agent {
 
     private static TaxiService instance;
 
-    private List<Long> waitingTimes;
+    private List<Double> waitingTimes;
     private Map<String, Integer> trips;
     private ReentrantReadWriteLock lock;
     private BiConsumer<Agent, String> newDriverCallback;
@@ -55,7 +55,7 @@ public class TaxiService extends Agent {
         return this.lock;
     }
 
-    public List<Long> getWaitingTimes() {
+    public List<Double> getWaitingTimes() {
         return this.waitingTimes;
     }
 
@@ -64,7 +64,7 @@ public class TaxiService extends Agent {
     }
 
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
-        long tic = System.currentTimeMillis();
+        double tic = System.currentTimeMillis();
 
         AID driver = null;
         while (driver == null) {
@@ -77,8 +77,8 @@ public class TaxiService extends Agent {
         trips.put(driverName, trips.getOrDefault(driverName, 0) + 1);
         lock.writeLock().unlock();
 
-        long toc = System.currentTimeMillis();
-        recordWaitingTime((toc - tic) / 1000);
+        double toc = System.currentTimeMillis();
+        recordWaitingTime(toc - tic);
 
         return tripInformation;
     }
@@ -101,8 +101,6 @@ public class TaxiService extends Agent {
         Set<AID> driversToCancel = driversLocations.keySet();
         driversLocations.remove(closestDriver);
         sendCancellations(passenger, driversToCancel);
-
-
 
         return closestDriver;
     }
@@ -135,12 +133,13 @@ public class TaxiService extends Agent {
         for (AID driver : drivers) {
             message.addReceiver(driver);
         }
+        message.setReplyWith("position_request" + requester.getLocalName() + System.currentTimeMillis());
         requester.send(message);
 
-        MessageTemplate responseTemplate = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
+        MessageTemplate responseTemplate = MessageTemplate.MatchInReplyTo(message.getReplyWith());
         for (int i = 0; i < drivers.size(); i++) {
             ACLMessage response = requester.blockingReceive(responseTemplate, WAIT_DRIVER_RESPONSE_TIME);
-            if (response == null) {
+            if (response == null || response.getPerformative() != ACLMessage.ACCEPT_PROPOSAL) {
                 continue;
             }
 
@@ -243,7 +242,7 @@ public class TaxiService extends Agent {
         return tripInformation;
     }
 
-    private void recordWaitingTime(long waitingTime) {
+    private void recordWaitingTime(double waitingTime) {
         lock.writeLock().lock();
         waitingTimes.add(waitingTime);
         lock.writeLock().unlock();

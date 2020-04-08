@@ -2,8 +2,6 @@ package ua.kpi.behaviors;
 
 import jade.core.AID;
 import jade.core.behaviours.CyclicBehaviour;
-import jade.core.behaviours.OneShotBehaviour;
-import jade.core.behaviours.SimpleBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
@@ -67,7 +65,7 @@ public class HostBehaviour extends CyclicBehaviour {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                agent.getCitizenState().setValue(CitizenState.State.WAIT_FOR_GUEST);
+                agent.getCitizenState().setValue(CitizenState.State.WAITING_FOR_GUEST);
 //                MyLog.log(agent + " is waiting for guest");
                 guest = message.getSender();
 
@@ -76,7 +74,7 @@ public class HostBehaviour extends CyclicBehaviour {
 
                     @Override
                     protected void onTick() {
-                        if (agent.getCitizenState().getValue() == CitizenState.State.WAIT_FOR_GUEST
+                        if (agent.getCitizenState().getValue() == CitizenState.State.WAITING_FOR_GUEST
                                 && guest.equals(waitingFor)) {
 //                            MyLog.log(agent + " resetting state to AT_HOME");
                             agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
@@ -91,11 +89,6 @@ public class HostBehaviour extends CyclicBehaviour {
                 long timeForGuest = Long.parseLong(message.getContent());
                 MyLog.log(agent + " will be with guest for " + timeForGuest);
                 timeToBecomeFree = System.currentTimeMillis() + timeForGuest * 1000 / Main.MODELLING_SPEED;
-//                try {
-//                    Thread.sleep(timeForGuest * 1000 / Main.MODELLING_SPEED);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
 //                MyLog.log(String.format("%s: %s is leaving", agent, guest.getLocalName()));
             case ACLMessage.CANCEL:
 //                MyLog.log(agent + " is ready to have guests");

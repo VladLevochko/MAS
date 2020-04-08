@@ -12,6 +12,7 @@ import ua.kpi.properties.AgentLocation;
 public class City {
     public enum Type {
         KYIV(29000, 30000, 3000, 150),
+        LUHANSK(14000, 17000, 470, 50),
         ZHYTOMYR(9000, 7200, 280, 15),
         KERCH(20000, 5000, 150, 5),
         UZHHOROD(7900, 8100, 115, 4),

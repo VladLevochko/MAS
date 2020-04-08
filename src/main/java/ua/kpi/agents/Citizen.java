@@ -42,11 +42,7 @@ public class Citizen extends Agent {
         }
 
         addBehaviour(new HostBehaviour(this));
-//        if (getLocalName().equals("citizen 0")) {
-//            addBehaviour(new GuestInstinct(this, 1000));
-//        } else {
-            addBehaviour(new GuestInstinct(this, ACTIVITY_PERIOD));
-//        }
+        addBehaviour(new GuestInstinct(this, ACTIVITY_PERIOD));
     }
 
     protected void takeDown() {

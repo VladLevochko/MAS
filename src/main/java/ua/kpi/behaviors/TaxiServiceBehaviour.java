@@ -32,9 +32,9 @@ public class TaxiServiceBehaviour extends TickerBehaviour {
         ReentrantReadWriteLock lock = service.getStorageLock();
         lock.writeLock().lock();
 
-        List<Long> times = service.getWaitingTimes();
+        List<Double> times = service.getWaitingTimes();
         int tripsNumber = times.size();
-        double totalWaitingTime = (double) times.stream().reduce(0L, Long::sum);
+        double totalWaitingTime = times.stream().reduce(0D, Double::sum);
         times.clear();
 
         Map<String, Integer> trips = service.getTrips();
@@ -46,7 +46,7 @@ public class TaxiServiceBehaviour extends TickerBehaviour {
 
         lock.writeLock().unlock();
 
-        double averageWaitingTime = Math.round(totalWaitingTime / tripsNumber) * Main.MODELLING_SPEED;
+        double averageWaitingTime = totalWaitingTime * Main.MODELLING_SPEED / tripsNumber;
         MyLog.log(String.format("%s average waiting time: %f; trips number: %d",
                 service, averageWaitingTime, tripsNumber));
         MyLog.log(sb.toString());
