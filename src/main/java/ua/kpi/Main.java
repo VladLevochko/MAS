@@ -15,7 +15,7 @@ public class Main {
         Profile profile = new ProfileImpl();
         AgentContainer mainContainer = runtime.createMainContainer(profile);
 
-        City city = new City(City.Type.ZHYTOMYR, mainContainer);
+        City city = new City(City.Type.UZHHOROD, mainContainer);
         city.start();
     }
 }

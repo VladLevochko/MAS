@@ -62,7 +62,7 @@ public class HostBehaviour extends CyclicBehaviour {
                     e.printStackTrace();
                 }
                 agent.getCitizenState().setValue(CitizenState.State.WAIT_FOR_GUEST);
-//                MyLog.log(agent + " is waiting for guest");  // TODO: add timer to reset state
+//                MyLog.log(agent + " is waiting for guest");
                 guest = message.getSender();
 
                 agent.addBehaviour(new TickerBehaviour(agent, WAIT_GUEST_TIME) {

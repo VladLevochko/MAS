@@ -58,8 +58,12 @@ public class GuestBehaviour extends Behaviour {
 
                 break;
             case GUEST_WAITING_RESPONSES:
-                ACLMessage message = agent.receive(replyTemplate);
-                if (message != null) {
+                for (int i = 0; i < agents.size(); i++) {
+                    ACLMessage message = agent.blockingReceive(replyTemplate, 2000);
+
+                    if (message == null) {
+                        continue;
+                    }
                     if (message.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
                         AID sender = message.getSender();
                         potentialHosts.add(sender);
@@ -69,15 +73,9 @@ public class GuestBehaviour extends Behaviour {
                             e.printStackTrace();
                         }
                     }
-                    responses++;
-
-                    if (responses == agents.size()) {
-//                        MyLog.log(String.format("%s received all %d responses", agent.toString(), responses));
-                        agent.getCitizenState().setValue(CitizenState.State.GUEST_TRAVELING);
-                    }
-                } else {
-                    block();
                 }
+
+                agent.getCitizenState().setValue(CitizenState.State.GUEST_TRAVELING);
                 break;
             case GUEST_TRAVELING:
                 if (potentialHosts.size() != 0) {
@@ -172,11 +170,17 @@ public class GuestBehaviour extends Behaviour {
         TripInformation tripInformation = taxi.requestDriver(agent, agent.getLocation(), locations.get(host));
 
         double stayTime = Math.random() * 3 * 60 * 60;
-        double totalTime = tripInformation.getTimeToPassenger()
+        long totalTime = (long) (tripInformation.getTimeToPassenger()
                 + tripInformation.getTimeToDestination()
-                + stayTime;
+                + stayTime);
 
-        notifyHostAboutTime(host, (long) totalTime);
+        notifyHostAboutTime(host, totalTime);
+
+        try {
+            Thread.sleep(totalTime * 1000 / Main.MODELLING_SPEED);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     private void notifyHostAboutTime(AID host, long time) {
