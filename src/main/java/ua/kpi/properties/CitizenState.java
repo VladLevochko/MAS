@@ -8,7 +8,8 @@ public class CitizenState {
 
         GUEST,
         GUEST_WAITING_RESPONSES,
-        GUEST_TRAVELING
+        OUT_OF_HOME,
+        COMING_HOME;
     }
 
     private State value;

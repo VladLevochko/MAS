@@ -19,10 +19,10 @@ public class City {
         BILA_TSERKVA(200, 200, 5, 2),
         CHABANY(100, 100, 2, 1);
 
-        int width;
-        int height;
-        int population;
-        int drivers;
+        public int width;
+        public int height;
+        public int population;
+        public int drivers;
 
         Type(int width, int height, int population, int drivers) {
             this.width = width;

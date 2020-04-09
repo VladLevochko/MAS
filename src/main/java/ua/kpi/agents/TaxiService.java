@@ -20,17 +20,20 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 
 public class TaxiService extends Agent {
-    private final long WAIT_DRIVER_RESPONSE_TIME = 1000;
+    private final long WAIT_DRIVER_RESPONSE_TIME = 2000;
 
     private static TaxiService instance;
 
     private List<Double> waitingTimes;
+    private List<Integer> requestingTries;
     private Map<String, Integer> trips;
     private ReentrantReadWriteLock lock;
     private BiConsumer<Agent, String> newDriverCallback;
+    private List<AID> drivers;
 
     private TaxiService() {
         waitingTimes = new ArrayList<>();
+        requestingTries = new ArrayList<>();
         trips = new HashMap<>();
         lock = new ReentrantReadWriteLock();
     }
@@ -55,8 +58,16 @@ public class TaxiService extends Agent {
         return this.lock;
     }
 
+    public void setDrivers(List<AID> drivers) {
+        this.drivers = drivers;
+    }
+
     public List<Double> getWaitingTimes() {
         return this.waitingTimes;
+    }
+
+    public List<Integer> getRequestingTries() {
+        return this.requestingTries;
     }
 
     public Map<String, Integer> getTrips() {
@@ -67,18 +78,21 @@ public class TaxiService extends Agent {
         double tic = System.currentTimeMillis();
 
         AID driver = null;
+        int tries = 0;
         while (driver == null) {
             driver = findDriver(passenger, from, to);
+            tries++;
         }
 
+        double toc = System.currentTimeMillis();
+        recordWaitingTime(toc - tic, tries);
+
         TripInformation tripInformation = tripWithDriver(driver, passenger, from, to);
+
         String driverName = driver.getLocalName();
         lock.writeLock().lock();
         trips.put(driverName, trips.getOrDefault(driverName, 0) + 1);
         lock.writeLock().unlock();
-
-        double toc = System.currentTimeMillis();
-        recordWaitingTime(toc - tic);
 
         return tripInformation;
     }
@@ -98,8 +112,8 @@ public class TaxiService extends Agent {
         }
         MyLog.log("chose driver " + closestDriver.getLocalName());
 
-        Set<AID> driversToCancel = driversLocations.keySet();
-        driversLocations.remove(closestDriver);
+        Set<AID> driversToCancel = new HashSet<>(drivers);
+        driversToCancel.remove(closestDriver);
         sendCancellations(passenger, driversToCancel);
 
         return closestDriver;
@@ -180,21 +194,6 @@ public class TaxiService extends Agent {
         passenger.send(cancellation);
     }
 
-    private boolean sendApproval(Citizen passenger, AID driver) {
-        ACLMessage message = new ACLMessage(ACLMessage.AGREE);
-        message.addReceiver(driver);
-        message.setReplyWith("approve" + System.currentTimeMillis());
-        passenger.send(message);
-
-        MessageTemplate responseTemplate = MessageTemplate.and(
-                MessageTemplate.MatchPerformative(ACLMessage.AGREE),
-                MessageTemplate.MatchInReplyTo(message.getReplyWith())
-        );
-        ACLMessage response = passenger.blockingReceive(responseTemplate, 1000);
-
-        return response == null;
-    }
-
     private TripInformation tripWithDriver(AID driver, Citizen passenger, AgentLocation from, AgentLocation to) {
         MessageTemplate responseTemplate = sendConfirmation(driver, passenger, from, to);
         TripInformation tripInformation = receiveTripInformation(passenger, responseTemplate);
@@ -242,9 +241,10 @@ public class TaxiService extends Agent {
         return tripInformation;
     }
 
-    private void recordWaitingTime(double waitingTime) {
+    private void recordWaitingTime(double waitingTime, int tries) {
         lock.writeLock().lock();
         waitingTimes.add(waitingTime);
+        requestingTries.add(tries);
         lock.writeLock().unlock();
     }
 }

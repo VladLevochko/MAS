@@ -28,10 +28,11 @@ public class GuestBehaviour extends Behaviour {
     private Citizen agent;
     private MessageTemplate replyTemplate;
     private List<AID> agents;
-    private int responses;
     private List<AID> potentialHosts;
     private Map<AID, AgentLocation> locations;
     private boolean isDone;
+    private AID host;
+    private long timeToBack;
 
     public GuestBehaviour(Citizen agent) {
         this.agent = agent;
@@ -43,6 +44,7 @@ public class GuestBehaviour extends Behaviour {
     @Override
     public void action() {
         CitizenState state = agent.getCitizenState();
+        potentialHosts.clear();
         switch (state.getValue()) {
             case GUEST:
 //                MyLog.log(agent + " sends propositions");
@@ -59,7 +61,7 @@ public class GuestBehaviour extends Behaviour {
                 break;
             case GUEST_WAITING_RESPONSES:
                 for (int i = 0; i < agents.size(); i++) {
-                    ACLMessage message = agent.blockingReceive(replyTemplate, 2000);
+                    ACLMessage message = agent.blockingReceive(replyTemplate, 1000);
 
                     if (message == null) {
                         continue;
@@ -75,23 +77,36 @@ public class GuestBehaviour extends Behaviour {
                     }
                 }
 
-                agent.getCitizenState().setValue(CitizenState.State.GUEST_TRAVELING);
-                break;
-            case GUEST_TRAVELING:
-                if (potentialHosts.size() != 0) {
-//                    MyLog.log(agent + " picking a host");
-                    AID host = pickHost(potentialHosts);
-                    MyLog.log(agent + " is going to " + host.getLocalName());
-                    sendApproval(host);
-                    sendRejectsExcept(potentialHosts, host);
+                if (potentialHosts.size() == 0) {
+                    agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
+                    break;
+                }
 
-                    goToHost(host);
-                    backFromHost(host);
+                AID host = pickHost(potentialHosts);
+                MyLog.log(agent + " is going to " + host.getLocalName());
+                sendApproval(host);
+                sendRejectsExcept(potentialHosts, host);
+                this.host = host;
+
+                goToHost(host);
+
+                agent.getCitizenState().setValue(CitizenState.State.OUT_OF_HOME);
+                break;
+            case OUT_OF_HOME:
+                if (System.currentTimeMillis() < timeToBack) {
+                    break;
+                }
+
+                backFromHost(this.host);
+                agent.getCitizenState().setValue(CitizenState.State.COMING_HOME);
+                break;
+            case COMING_HOME:
+                if (System.currentTimeMillis() < timeToBack) {
+                    break;
                 }
 
                 agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
                 isDone = true;
-                break;
         }
     }
 
@@ -176,11 +191,7 @@ public class GuestBehaviour extends Behaviour {
 
         notifyHostAboutTime(host, totalTime);
 
-        try {
-            Thread.sleep(totalTime * 1000 / Main.MODELLING_SPEED);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        timeToBack = System.currentTimeMillis() + totalTime * 1000 / Main.MODELLING_SPEED;
     }
 
     private void notifyHostAboutTime(AID host, long time) {
@@ -196,11 +207,12 @@ public class GuestBehaviour extends Behaviour {
         TripInformation tripInformation = taxi.requestDriver(agent, locations.get(host), agent.getLocation());
         long totalTime = (long) tripInformation.getTimeToPassenger()
                 + (long) tripInformation.getTimeToDestination();
-        try {
-            Thread.sleep(totalTime * 1000 / Main.MODELLING_SPEED);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            Thread.sleep(totalTime * 1000 / Main.MODELLING_SPEED);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+        timeToBack = System.currentTimeMillis() + totalTime * 1000 / Main.MODELLING_SPEED;
     }
 
     @Override

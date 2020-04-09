@@ -36,6 +36,9 @@ public class TaxiServiceBehaviour extends TickerBehaviour {
         int tripsNumber = times.size();
         double totalWaitingTime = times.stream().reduce(0D, Double::sum);
         times.clear();
+        List<Integer> tries = service.getRequestingTries();
+        double triesSum = tries.stream().reduce(0, Integer::sum);
+        tries.clear();
 
         Map<String, Integer> trips = service.getTrips();
         StringBuilder sb = new StringBuilder("Trips number:\n");
@@ -47,13 +50,15 @@ public class TaxiServiceBehaviour extends TickerBehaviour {
         lock.writeLock().unlock();
 
         double averageWaitingTime = totalWaitingTime * Main.MODELLING_SPEED / tripsNumber;
-        MyLog.log(String.format("%s average waiting time: %f; trips number: %d",
-                service, averageWaitingTime, tripsNumber));
+        double averageTriesNumber = triesSum / tripsNumber;
+        MyLog.log(String.format("%s average waiting time: %f; average tries: %f; trips number: %d",
+                service, averageWaitingTime, averageTriesNumber, tripsNumber));
         MyLog.log(sb.toString());
 
         if (averageWaitingTime > WAITING_THRESHOLD) {
             MyLog.log("Hiring new driver");
             newDriverCallback.accept(new Driver(), "new_driver_" + newDrivers++);
+//            service.setDrivers(service.getDrivers());
         }
     }
 }

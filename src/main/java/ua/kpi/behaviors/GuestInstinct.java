@@ -18,15 +18,15 @@ public class GuestInstinct extends TickerBehaviour {
     @Override
     protected void onTick() {
         CitizenState state = agent.getCitizenState();
-        if (state.getValue() != CitizenState.State.AT_HOME) {
-            return;
+        long nextGuestingIntention;
+        if (state.getValue() == CitizenState.State.AT_HOME) {
+            state.setGuest();
+            agent.addBehaviour(new GuestBehaviour(agent));
+            nextGuestingIntention = (long) (Math.random() * this.period);
+        } else {
+            nextGuestingIntention = (long) (Math.random() * this.period / 8);
         }
-//        MyLog.log(agent.toString() + " need to visit somebody");
 
-        state.setGuest();
-        agent.addBehaviour(new GuestBehaviour(agent));
-
-        long nextGuestingIntention = (long) (Math.random() * this.period);
         reset(nextGuestingIntention);
     }
 }

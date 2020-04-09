@@ -8,14 +8,11 @@ import jade.domain.FIPAException;
 import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
 import jade.wrapper.StaleProxyException;
+import ua.kpi.Main;
 import ua.kpi.MyLog;
 import ua.kpi.behaviors.DriverBehaviour;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.DriverState;
-import ua.kpi.properties.TripInformation;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class Driver extends Agent {
     private static int driversNumber = 0;
@@ -27,16 +24,20 @@ public class Driver extends Agent {
 
     public Driver() {
         state = DriverState.FREE;
-        location = new AgentLocation();
+        location = getFairLocation();
     }
 
-    public static Driver create(AgentContainer container) throws StaleProxyException {
-        Driver agent = new Driver();
-        String nickname = "driver_" + driversNumber++;
-        AgentController controller = container.acceptNewAgent(nickname, agent);
-        controller.start();
+    private AgentLocation getFairLocation() {
+        int width = Main.CITY_TYPE.width;
+        int height = Main.CITY_TYPE.height;
 
-        return agent;
+        int x = width / 2;
+        int y = height / 2;
+//        int quarter = driversNumber++ % 4;
+//        int x = width / 4 + (quarter % 2) * width / 2;
+//        int y = height / 4 + (quarter / 2) * height / 2;
+
+        return new AgentLocation(x, y);
     }
 
     protected void setup() {
@@ -84,5 +85,9 @@ public class Driver extends Agent {
 
     public String toString() {
         return getLocalName();
+    }
+
+    public String description() {
+        return String.format("%s %s %s", getLocalName(), location, state);
     }
 }

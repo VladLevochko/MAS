@@ -1,6 +1,5 @@
 package ua.kpi.behaviors;
 
-import jade.core.AID;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
@@ -16,7 +15,6 @@ import java.io.IOException;
 public class DriverBehaviour extends CyclicBehaviour {
 
     private Driver agent;
-    private AID client;
     private long endTripAt;
 
     public DriverBehaviour(Driver agent) {
@@ -41,11 +39,11 @@ public class DriverBehaviour extends CyclicBehaviour {
                         try {
                             response.setContentObject(agent.getLocation());
                         } catch (IOException e) {
+                            MyLog.log(agent + "error sending location");
                             e.printStackTrace();
                         }
 
                         agent.send(response);
-                        client = message.getSender();
                         agent.setDriverState(DriverState.WAITING_FOR_PASSENGER);
 //                        MyLog.log(agent + " replied to " + message.getSender().getLocalName() + " that he is free");
                     } else {
@@ -56,11 +54,15 @@ public class DriverBehaviour extends CyclicBehaviour {
 
                     break;
                 case ACLMessage.CONFIRM:
-                    MyLog.log(agent + " received confirmation from " + message.getSender().getLocalName());
-
-                    if (!message.getSender().equals(client)) {
+                    if (agent.getDriverState() != DriverState.WAITING_FOR_PASSENGER) {
                         break;
                     }
+
+                    MyLog.log(agent + " received confirmation from " + message.getSender().getLocalName());
+
+//                    if (!message.getSender().equals(client)) {
+//                        break;
+//                    }
 
                     try {
                         AgentLocation[] path = (AgentLocation[]) message.getContentObject();
@@ -80,8 +82,9 @@ public class DriverBehaviour extends CyclicBehaviour {
                         e.printStackTrace();
                     }
                 case ACLMessage.CANCEL:
-                    agent.setDriverState(DriverState.FREE);
-                    client = null;
+                    if (agent.getDriverState() == DriverState.WAITING_FOR_PASSENGER) {
+                        agent.setDriverState(DriverState.FREE);
+                    }
             }
         } else {
             block();
