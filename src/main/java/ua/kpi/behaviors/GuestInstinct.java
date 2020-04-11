@@ -1,7 +1,6 @@
 package ua.kpi.behaviors;
 
 import jade.core.behaviours.TickerBehaviour;
-import ua.kpi.MyLog;
 import ua.kpi.properties.CitizenState;
 import ua.kpi.agents.Citizen;
 

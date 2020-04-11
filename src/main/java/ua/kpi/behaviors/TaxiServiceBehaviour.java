@@ -1,6 +1,5 @@
 package ua.kpi.behaviors;
 
-import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.TickerBehaviour;
 import ua.kpi.Main;
@@ -49,10 +48,10 @@ public class TaxiServiceBehaviour extends TickerBehaviour {
 
         lock.writeLock().unlock();
 
-        double averageWaitingTime = totalWaitingTime * Main.MODELLING_SPEED / tripsNumber;
+        double averageWaitingTime = totalWaitingTime / tripsNumber;
         double averageTriesNumber = triesSum / tripsNumber;
-        MyLog.log(String.format("%s average waiting time: %f; average tries: %f; trips number: %d",
-                service, averageWaitingTime, averageTriesNumber, tripsNumber));
+        MyLog.log(String.format("%s average waiting time: %dms; average tries: %f; trips number: %d",
+                service, Math.round(averageWaitingTime), averageTriesNumber, tripsNumber));
         MyLog.log(sb.toString());
 
         if (averageWaitingTime > WAITING_THRESHOLD) {

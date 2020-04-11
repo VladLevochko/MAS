@@ -20,7 +20,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 
 public class TaxiService extends Agent {
-    private final long WAIT_DRIVER_RESPONSE_TIME = 2000;
+    private final long WAIT_DRIVER_RESPONSE_TIME = 1000;
 
     private static TaxiService instance;
 
@@ -29,7 +29,6 @@ public class TaxiService extends Agent {
     private Map<String, Integer> trips;
     private ReentrantReadWriteLock lock;
     private BiConsumer<Agent, String> newDriverCallback;
-    private List<AID> drivers;
 
     private TaxiService() {
         waitingTimes = new ArrayList<>();
@@ -58,10 +57,6 @@ public class TaxiService extends Agent {
         return this.lock;
     }
 
-    public void setDrivers(List<AID> drivers) {
-        this.drivers = drivers;
-    }
-
     public List<Double> getWaitingTimes() {
         return this.waitingTimes;
     }
@@ -75,16 +70,18 @@ public class TaxiService extends Agent {
     }
 
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
-        double tic = System.currentTimeMillis();
+        List<AID> drivers = getDrivers();
 
         AID driver = null;
         int tries = 0;
+
+        double tic = System.currentTimeMillis();
         while (driver == null) {
-            driver = findDriver(passenger, from, to);
+            driver = findDriver(passenger, from, to, drivers);
             tries++;
         }
-
         double toc = System.currentTimeMillis();
+
         recordWaitingTime(toc - tic, tries);
 
         TripInformation tripInformation = tripWithDriver(driver, passenger, from, to);
@@ -97,14 +94,7 @@ public class TaxiService extends Agent {
         return tripInformation;
     }
 
-    private AID findDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
-//        MyLog.log("looking for drivers");
-        List<AID> drivers = getDrivers();
-//        MyLog.log(String.format("found %d drivers", drivers.size()));
-        if (drivers.size() == 0) {
-            return null;
-        }
-
+    private AID findDriver(Citizen passenger, AgentLocation from, AgentLocation to, List<AID> drivers) {
         Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
         AID closestDriver = findClosestDriver(driversLocations, from);
         if (closestDriver == null) {
