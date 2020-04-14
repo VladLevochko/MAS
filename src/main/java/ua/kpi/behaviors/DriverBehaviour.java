@@ -6,7 +6,6 @@ import jade.lang.acl.UnreadableException;
 import ua.kpi.Main;
 import ua.kpi.MyLog;
 import ua.kpi.agents.Driver;
-import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.DriverState;
 import ua.kpi.properties.TripInformation;
 
@@ -60,25 +59,16 @@ public class DriverBehaviour extends CyclicBehaviour {
 
                     MyLog.log(agent + " received confirmation from " + message.getSender().getLocalName());
 
-//                    if (!message.getSender().equals(client)) {
-//                        break;
-//                    }
-
                     try {
-                        AgentLocation[] path = (AgentLocation[]) message.getContentObject();
-
-                        TripInformation tripInformation = calculateTripInformation(path);
-                        MyLog.log(agent + " calculated " + tripInformation);
-                        ACLMessage response = message.createReply();
-                        response.setContentObject(tripInformation);
-
-                        agent.send(response);
+                        TripInformation tripInformation = (TripInformation) message.getContentObject();
+                        MyLog.log(agent + " is having a ride " + tripInformation);
 
                         endTripAt = System.currentTimeMillis() + (long) tripInformation.getTotalTime() * 1000 / Main.MODELLING_SPEED;
                         agent.setDriverState(DriverState.DRIVING);
 
-                        agent.setLocation(path[1]);
-                    } catch (UnreadableException | IOException e) {
+                        agent.setLocation(tripInformation.getDestination());
+                    } catch (UnreadableException e) {
+                        agent.setDriverState(DriverState.FREE);
                         e.printStackTrace();
                     }
                 case ACLMessage.CANCEL:
@@ -89,24 +79,5 @@ public class DriverBehaviour extends CyclicBehaviour {
         } else {
             block();
         }
-    }
-
-    private TripInformation calculateTripInformation(AgentLocation[] path) {
-        AgentLocation driverLocation = agent.getLocation();
-        AgentLocation passengerLocation = path[0];
-        AgentLocation destination = path[1];
-        double timeToPassenger = calculateTime(driverLocation, passengerLocation);
-        double timeToDestination = calculateTime(passengerLocation, destination);
-
-        TripInformation tripInformation = new TripInformation(timeToPassenger, timeToDestination);
-        tripInformation.setDistanceToPassenger(driverLocation.distanceTo(passengerLocation));
-        tripInformation.setDistanceToDestination(passengerLocation.distanceTo(destination));
-
-        return tripInformation;
-    }
-
-    private double calculateTime(AgentLocation from, AgentLocation to) {
-        double distance = from.distanceTo(to);
-        return distance / agent.getSpeed();
     }
 }

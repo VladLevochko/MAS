@@ -6,6 +6,7 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import ua.kpi.Main;
 import ua.kpi.MyLog;
+import ua.kpi.behaviors.IncomeBehaviour;
 import ua.kpi.properties.AgentLocation;
 import ua.kpi.properties.CitizenState;
 import ua.kpi.behaviors.GuestInstinct;
@@ -13,15 +14,15 @@ import ua.kpi.behaviors.HostBehaviour;
 import jade.core.Agent;
 
 public class Citizen extends Agent {
-    private static long ACTIVITY_PERIOD = 24 * 60 * 60 * 1000 / 2 / Main.MODELLING_SPEED;
-
     private CitizenState state;
     private AgentLocation location;
+    private double money;
 
     public Citizen(AgentLocation location) {
         this.state = new CitizenState();
         this.state.setValue(CitizenState.State.AT_HOME);
         this.location = location;
+        this.money = 100;
     }
 
     protected void setup() {
@@ -36,16 +37,20 @@ public class Citizen extends Agent {
         dfd.addServices(sd);
         try {
             DFService.register(this, dfd);
-        }
-        catch (FIPAException fe) {
+            addBehaviour(new HostBehaviour(this));
+            addBehaviour(new GuestInstinct(this));
+            addBehaviour(new IncomeBehaviour(this));
+        } catch (FIPAException fe) {
             fe.printStackTrace();
         }
-
-        addBehaviour(new HostBehaviour(this));
-        addBehaviour(new GuestInstinct(this, ACTIVITY_PERIOD));
     }
 
     protected void takeDown() {
+        try {
+            DFService.deregister(this);
+        } catch (FIPAException e) {
+            e.printStackTrace();
+        }
         MyLog.log(this + " left the city");
     }
 
@@ -59,5 +64,18 @@ public class Citizen extends Agent {
 
     public String toString() {
         return getLocalName();
+    }
+
+    public void updateMoney(double value) {
+        this.money += value;
+    }
+
+    public double getMoney() {
+        return this.money;
+    }
+
+    public boolean satisfiedWithTrip(double waitingTime, double price) {
+        return price <= this.money
+                && Main.MODELLING_PARAMS.dissatisfaction.apply(waitingTime, price) <= 1;
     }
 }

@@ -17,7 +17,7 @@ import ua.kpi.properties.DriverState;
 public class Driver extends Agent {
     private static int driversNumber = 0;
 
-    private final double SPEED = 16.67; // m/s
+    public static final double SPEED = 16.67; // m/s
 
     private DriverState state;
     private AgentLocation location;
@@ -59,7 +59,12 @@ public class Driver extends Agent {
         }
     }
 
-    public void takeDown() {
+    protected void takeDown() {
+        try {
+            DFService.deregister(this);
+        } catch (FIPAException e) {
+            e.printStackTrace();
+        }
         MyLog.log(this + " went to rest");
     }
 

@@ -3,10 +3,12 @@ package ua.kpi.properties;
 import java.io.Serializable;
 
 public class TripInformation implements Serializable {
-    private double distanceToPassenger;
-    private double distanceToDestination;
+    transient private double distanceToPassenger;
+    transient private double distanceToDestination;
     private double timeToPassenger;
     private double timeToDestination;
+    private AgentLocation destination;
+    transient private double cost;
 
     public TripInformation() {
 
@@ -53,10 +55,30 @@ public class TripInformation implements Serializable {
         return this.distanceToDestination;
     }
 
+    public void setDestination(AgentLocation location) {
+        this.destination = location;
+    }
+
+    public double getTotalDistance() {
+        return this.distanceToPassenger + this.distanceToDestination;
+    }
+
+    public AgentLocation getDestination() {
+        return this.destination;
+    }
+
+    public double getCost() {
+        return cost;
+    }
+
+    public void setCost(double cost) {
+        this.cost = cost;
+    }
+
     public String toString() {
         return String.format("TripInformation { time [toPassenger: %f; toDestination: %f; total: %f] " +
                         "distance [toPassenger: %f; toDestination: %f; total: %f] }",
                 timeToPassenger, timeToDestination, getTotalTime(),
-                distanceToPassenger, distanceToDestination, distanceToPassenger + distanceToDestination);
+                distanceToPassenger, distanceToDestination, getTotalDistance());
     }
 }

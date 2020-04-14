@@ -88,11 +88,21 @@ public class GuestBehaviour extends Behaviour {
                 sendRejectsExcept(potentialHosts, host);
                 this.host = host;
 
-                goToHost(host);
+                boolean status = goToHost(host);
+                if (!status) {
+                    agent.getCitizenState().setValue(CitizenState.State.AT_HOME);
+                    return;
+                }
 
                 agent.getCitizenState().setValue(CitizenState.State.OUT_OF_HOME);
                 break;
             case OUT_OF_HOME:
+                try {
+                    Thread.sleep(100);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 if (System.currentTimeMillis() < timeToBack) {
                     break;
                 }
@@ -101,6 +111,12 @@ public class GuestBehaviour extends Behaviour {
                 agent.getCitizenState().setValue(CitizenState.State.COMING_HOME);
                 break;
             case COMING_HOME:
+                try {
+                    Thread.sleep(100);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 if (System.currentTimeMillis() < timeToBack) {
                     break;
                 }
@@ -179,10 +195,14 @@ public class GuestBehaviour extends Behaviour {
         }
     }
 
-    private void goToHost(AID host) {
+    private boolean goToHost(AID host) {
         TaxiService taxi = TaxiService.getInstance();
 //        MyLog.log(agent + " is requesting taxi");
         TripInformation tripInformation = taxi.requestDriver(agent, agent.getLocation(), locations.get(host));
+        if (tripInformation == null) {
+            isDone = true;
+            return false;
+        }
 
         double stayTime = Math.random() * 3 * 60 * 60;
         long totalTime = (long) (tripInformation.getTimeToPassenger()
@@ -192,6 +212,10 @@ public class GuestBehaviour extends Behaviour {
         notifyHostAboutTime(host, totalTime);
 
         timeToBack = System.currentTimeMillis() + totalTime * 1000 / Main.MODELLING_SPEED;
+
+        agent.updateMoney(-tripInformation.getCost());
+
+        return true;
     }
 
     private void notifyHostAboutTime(AID host, long time) {
@@ -204,7 +228,19 @@ public class GuestBehaviour extends Behaviour {
 
     private void backFromHost(AID host) {
         TaxiService taxi = TaxiService.getInstance();
-        TripInformation tripInformation = taxi.requestDriver(agent, locations.get(host), agent.getLocation());
+        TripInformation tripInformation;
+        while (true) {
+            tripInformation = taxi.requestDriver(agent, locations.get(host), agent.getLocation());
+            if (tripInformation == null) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                break;
+            }
+        }
         long totalTime = (long) tripInformation.getTimeToPassenger()
                 + (long) tripInformation.getTimeToDestination();
 //        try {

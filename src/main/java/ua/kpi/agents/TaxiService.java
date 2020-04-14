@@ -2,6 +2,7 @@ package ua.kpi.agents;
 
 import jade.core.AID;
 import jade.core.Agent;
+import jade.core.behaviours.Behaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -9,6 +10,7 @@ import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import ua.kpi.Main;
 import ua.kpi.MyLog;
 import ua.kpi.behaviors.TaxiServiceBehaviour;
 import ua.kpi.properties.AgentLocation;
@@ -18,9 +20,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class TaxiService extends Agent {
     private final long WAIT_DRIVER_RESPONSE_TIME = 1000;
+    private final float PRICE = 2.5f;
 
     private static TaxiService instance;
 
@@ -29,16 +33,29 @@ public class TaxiService extends Agent {
     private Map<String, Integer> trips;
     private ReentrantReadWriteLock lock;
     private BiConsumer<Agent, String> newDriverCallback;
+    private Consumer<Double> balanceCheckCallback;
+
+    private double balance;
+    private double cost;
+    private double coefficient;
 
     private TaxiService() {
         waitingTimes = new ArrayList<>();
         requestingTries = new ArrayList<>();
         trips = new HashMap<>();
         lock = new ReentrantReadWriteLock();
+
+        this.balance = 150000;
+        this.cost = 2.5 / 1000;
+        this.coefficient = 0.2;
     }
 
     public void setNewDriverCallback(BiConsumer<Agent, String> callback) {
         this.newDriverCallback = callback;
+    }
+
+    public void addBalanceCheckCallback(Consumer<Double> callback) {
+        balanceCheckCallback = callback;
     }
 
     public static TaxiService getInstance() {
@@ -49,8 +66,30 @@ public class TaxiService extends Agent {
         return instance;
     }
 
-    public void setup() {
-        addBehaviour(new TaxiServiceBehaviour(this, newDriverCallback));
+    protected void setup() {
+        MyLog.log("setting up new TaxiService");
+
+        TaxiServiceBehaviour behaviour = new TaxiServiceBehaviour(this, newDriverCallback);
+        behaviour.setBalanceCheckCallback(balanceCheckCallback);
+
+        addBehaviour(behaviour);
+    }
+
+    protected void takeDown() {
+        MyLog.log("deleting TaxiService");
+        instance = null;
+    }
+
+    public void updateBalance(double value) {
+        balance += value;
+    }
+
+    public void setCoefficient(double value) {
+        this.coefficient = value;
+    }
+
+    public double getBalance() {
+        return this.balance;
     }
 
     public ReentrantReadWriteLock getStorageLock() {
@@ -70,23 +109,40 @@ public class TaxiService extends Agent {
     }
 
     public TripInformation requestDriver(Citizen passenger, AgentLocation from, AgentLocation to) {
-        List<AID> drivers = getDrivers();
+        Set<AID> drivers = getDrivers();
 
-        AID driver = null;
+        Map.Entry<AID, AgentLocation> driver = null;
         int tries = 0;
 
         double tic = System.currentTimeMillis();
         while (driver == null) {
             driver = findDriver(passenger, from, to, drivers);
             tries++;
+
         }
         double toc = System.currentTimeMillis();
 
-        recordWaitingTime(toc - tic, tries);
+        TripInformation tripInformation = calculateTripInformation(driver.getValue(), from, to);
+        double price = calculatePrice(tripInformation);
 
-        TripInformation tripInformation = tripWithDriver(driver, passenger, from, to);
+        double waitingTime = (toc - tic) / 1000 * Main.MODELLING_SPEED + tripInformation.getTimeToPassenger();
 
-        String driverName = driver.getLocalName();
+//        if (passenger.satisfiedWithTrip(tripInformation.getTimeToPassenger(), price)) {
+        if (Main.MODELLING_PARAMS.dissatisfaction.apply(waitingTime, price) <= 1) {
+            drivers.remove(driver.getKey());
+            sendCancellations(passenger, drivers);
+            sendConfirmation(driver.getKey(), passenger, tripInformation);
+        } else {
+            sendCancellations(passenger, drivers);
+            return null;
+        }
+
+        receivePayment(tripInformation);
+        tripInformation.setCost(price);
+
+        recordWaitingTime(waitingTime, tries);
+
+        String driverName = driver.getKey().getLocalName();
         lock.writeLock().lock();
         trips.put(driverName, trips.getOrDefault(driverName, 0) + 1);
         lock.writeLock().unlock();
@@ -94,23 +150,8 @@ public class TaxiService extends Agent {
         return tripInformation;
     }
 
-    private AID findDriver(Citizen passenger, AgentLocation from, AgentLocation to, List<AID> drivers) {
-        Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
-        AID closestDriver = findClosestDriver(driversLocations, from);
-        if (closestDriver == null) {
-            return null;
-        }
-        MyLog.log("chose driver " + closestDriver.getLocalName());
-
-        Set<AID> driversToCancel = new HashSet<>(drivers);
-        driversToCancel.remove(closestDriver);
-        sendCancellations(passenger, driversToCancel);
-
-        return closestDriver;
-    }
-
-    public List<AID> getDrivers() {
-        List<AID> drivers = new ArrayList<>();
+    public Set<AID> getDrivers() {
+        Set<AID> drivers = new HashSet<>();
 
         DFAgentDescription template = new DFAgentDescription();
         ServiceDescription serviceDescription = new ServiceDescription();
@@ -129,8 +170,18 @@ public class TaxiService extends Agent {
         return drivers;
     }
 
+    private Map.Entry<AID, AgentLocation> findDriver(Citizen passenger, AgentLocation from, AgentLocation to, Set<AID> drivers) {
+        Map<AID, AgentLocation> driversLocations = getDriversLocations(drivers, passenger);
+        Map.Entry<AID, AgentLocation> closestDriver = findClosestDriver(driversLocations, from);
+        if (closestDriver == null) {
+            return null;
+        }
+        MyLog.log("chose driver " + closestDriver.getKey().getLocalName());
 
-    private Map<AID, AgentLocation> getDriversLocations(List<AID> drivers, Agent requester) {
+        return closestDriver;
+    }
+
+    private Map<AID, AgentLocation> getDriversLocations(Set<AID> drivers, Agent requester) {
         Map<AID, AgentLocation> locations = new HashMap<>();
 
         ACLMessage message = new ACLMessage(ACLMessage.PROPOSE);
@@ -159,12 +210,12 @@ public class TaxiService extends Agent {
         return locations;
     }
 
-    private AID findClosestDriver(Map<AID, AgentLocation> driversLocations, AgentLocation targetLocation) {
+    private Map.Entry<AID, AgentLocation> findClosestDriver(Map<AID, AgentLocation> driversLocations, AgentLocation targetLocation) {
         double smallestDistance = Double.MAX_VALUE;
-        AID closestDriver = null;
+        Map.Entry<AID, AgentLocation> closestDriver = null;
 
-        for (AID driver : driversLocations.keySet()) {
-            AgentLocation driverLocation = driversLocations.get(driver);
+        for (Map.Entry<AID, AgentLocation> driver : driversLocations.entrySet()) {
+            AgentLocation driverLocation = driver.getValue();
             double distance = driverLocation.distanceTo(targetLocation);
             if (distance < smallestDistance) {
                 smallestDistance = distance;
@@ -184,21 +235,13 @@ public class TaxiService extends Agent {
         passenger.send(cancellation);
     }
 
-    private TripInformation tripWithDriver(AID driver, Citizen passenger, AgentLocation from, AgentLocation to) {
-        MessageTemplate responseTemplate = sendConfirmation(driver, passenger, from, to);
-        TripInformation tripInformation = receiveTripInformation(passenger, responseTemplate);
-
-        return tripInformation;
-    }
-
-    private MessageTemplate sendConfirmation(AID driver, Citizen passenger, AgentLocation from, AgentLocation to) {
+    private void sendConfirmation(AID driver, Citizen passenger, TripInformation tripInformation) {
         ACLMessage confirmation = new ACLMessage(ACLMessage.CONFIRM);
         confirmation.addReceiver(driver);
         confirmation.setReplyWith("trip_confirmation" + System.currentTimeMillis());
 
-        AgentLocation[] path = new AgentLocation[] {from, to};
         try {
-            confirmation.setContentObject(path);
+            confirmation.setContentObject(tripInformation);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -212,23 +255,36 @@ public class TaxiService extends Agent {
         }
 
         passenger.send(confirmation);
-
-        MessageTemplate responseTemplate = MessageTemplate.MatchInReplyTo(confirmation.getReplyWith());
-
-        return responseTemplate;
     }
 
-    private TripInformation receiveTripInformation(Citizen passenger, MessageTemplate responseTemplate) {
-        ACLMessage response = passenger.blockingReceive(responseTemplate);
+    private TripInformation calculateTripInformation(AgentLocation driverLocation, AgentLocation passengerLocation, AgentLocation destination) {
+        double timeToPassenger = calculateTime(driverLocation, passengerLocation);
+        double timeToDestination = calculateTime(passengerLocation, destination);
 
-        TripInformation tripInformation = null;
-        try {
-            tripInformation = (TripInformation) response.getContentObject();
-        } catch (UnreadableException e) {
-            e.printStackTrace();
-        }
+        TripInformation tripInformation = new TripInformation(timeToPassenger, timeToDestination);
+        tripInformation.setDistanceToPassenger(driverLocation.distanceTo(passengerLocation));
+        tripInformation.setDistanceToDestination(passengerLocation.distanceTo(destination));
+
+        tripInformation.setDestination(destination);
 
         return tripInformation;
+    }
+
+    private double calculateTime(AgentLocation from, AgentLocation to) {
+        double distance = from.distanceTo(to);
+        return distance / Driver.SPEED;
+    }
+
+    private double calculatePrice(TripInformation tripInformation) {
+        return tripInformation.getTotalDistance() * getPriceOfMeter();
+    }
+
+    private double getPriceOfMeter() {
+        return this.cost * (1 + this.coefficient);
+    }
+
+    private void receivePayment(TripInformation tripInformation) {
+        this.balance += tripInformation.getTotalDistance() * this.coefficient * this.cost;
     }
 
     private void recordWaitingTime(double waitingTime, int tries) {
@@ -237,4 +293,5 @@ public class TaxiService extends Agent {
         requestingTries.add(tries);
         lock.writeLock().unlock();
     }
+
 }
