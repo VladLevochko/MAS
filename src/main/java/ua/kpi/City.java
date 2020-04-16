@@ -61,8 +61,8 @@ public class City {
 
         ArrayList<double[]> results = new ArrayList<>();
 
-        for (int driversNumber = minDriversNumber; driversNumber < maxDriversNumber; driversNumber++) {
-            for (double coefficient = minCoefficient; coefficient < maxCoefficient; coefficient += 0.1) {
+        for (int driversNumber = minDriversNumber; driversNumber <= maxDriversNumber; driversNumber++) {
+            for (double coefficient = minCoefficient; coefficient <= maxCoefficient; coefficient += 0.1) {
                 System.out.println("iteration");
                 double averageIncome = getAverageIncome(driversNumber, coefficient, days);
                 results.add(new double[] {driversNumber, coefficient, averageIncome});
